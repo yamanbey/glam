@@ -1,0 +1,2 @@
+- handle deletion of SpecificationReader in main more elegantly
+- option to redirect PrintGraph to log

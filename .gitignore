@@ -1,0 +1,7 @@
+*.pyc
+build/
+*~
+logfile
+glam.out
+glam.log
+valgrind.out

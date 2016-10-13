@@ -1,0 +1,12 @@
+Import('env', 'debug')
+env.Append(LIBS=['boost_program_options', 'boost_system', 'boost_filesystem', 'boost_graph', 'boost_regex'])
+env.Append(LIBS=['m', 'pthread', 'ffi', 'edit', 'tinfo', 'dl', 'm', 'log4cxx'])
+env['LINK'] = env['CXX']
+SConscript(['proto/SConscript'])
+if debug:
+    env.Append(CCFLAGS = ' -g -DDEBUG')
+    env.Append(CPPFLAGS='-I/usr/lib/llvm-3.8/include  -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS')
+env.ParseConfig('llvm-config --ldflags --libs --system-libs')
+
+env.Dump()
+env.Program('glam', ['main.cc', 'specification_reader.cc', 'glam_workload.cc'])
