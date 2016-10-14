@@ -5,7 +5,7 @@ env['LINK'] = env['CXX']
 SConscript(['proto/SConscript'])
 if debug:
     env.Append(CCFLAGS = ' -g -DDEBUG')
-    env.Append(CPPFLAGS='-I/usr/lib/llvm-3.8/include  -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS')
+env.Append(CPPFLAGS='-I/usr/lib/llvm-3.8/include  -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS')
 env.ParseConfig('llvm-config --ldflags --libs --system-libs')
 
 env.Dump()

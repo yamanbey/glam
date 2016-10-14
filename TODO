@@ -1,2 +1,4 @@
 - handle deletion of SpecificationReader in main more elegantly
 - option to redirect PrintGraph to log
+- replace overloaded ostream operator with boost fusion for_each
+- Refactor DotGraph DotEdge DotVertex to GLAM...

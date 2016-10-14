@@ -59,10 +59,11 @@ GLAMWorkload* DOTSpecificationReader::convert()
   dp.property("label",       boost::get(&DotVertex::label,         *graphviz));
   dp.property("data_type",       boost::get(&DotVertex::dataType,         *graphviz));
   dp.property("distance",       boost::get(&DotVertex::distance,         *graphviz));
-  dp.property("operation",       boost::get(&DotVertex::distance,         *graphviz));
+  dp.property("operation",       boost::get(&DotVertex::operation,         *graphviz));
   dp.property("stride",       boost::get(&DotVertex::stride,         *graphviz));
   dp.property("dependency",       boost::get(&DotVertex::dependency,         *graphviz));
   dp.property("length",       boost::get(&DotVertex::length,         *graphviz));
+  
   dp.property("label",       boost::get(&DotEdge::label,           *graphviz));
   dp.property("type",       boost::get(&DotEdge::type,           *graphviz));
   dp.property("condition",       boost::get(&DotEdge::condition,           *graphviz));
