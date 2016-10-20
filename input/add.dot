@@ -2,5 +2,5 @@ digraph add {
   1 [label="Compute",data_type=float,distance=1,operation=add,length=16,dependency=RAW]
   module_name="add"
   function_name="float_add"
-  label="glamtest"
+  label="add_test"
 }
