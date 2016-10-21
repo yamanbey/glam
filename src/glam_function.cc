@@ -1,5 +1,6 @@
 #include "glam_function.hh"
 #include <llvm/IR/Module.h>
+
 GLAMFunction::GLAMFunction()
 {
 

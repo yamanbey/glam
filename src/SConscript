@@ -8,4 +8,4 @@ env.Append(CPPFLAGS='-I/usr/lib/llvm-3.8/include  -D_GNU_SOURCE -D__STDC_CONSTAN
 env.ParseConfig('llvm-config --ldflags --libs --system-libs')
 
 env.Dump()
-env.Program('glam', ['main.cc', 'specification_reader.cc', 'glam_workload.cc', 'glam_function.cc'])
+env.Program('glam', ['main.cc', 'specification_reader.cc', 'glam_workload.cc', 'glam_function.cc', 'glam_basicblock.cc'])

@@ -7,8 +7,9 @@
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#pragma once
 class GLAMFunction;
-
+class GLAMBasicBlock;
 struct DotVertex {
   std::string dataType;
   int distance;
@@ -17,7 +18,7 @@ struct DotVertex {
   int length;
   std::string label;
   std::string dependency;
-  llvm::BasicBlock *lo_block;
+  GLAMBasicBlock *g_block;
   friend std::ostream& operator <<(std::ostream& os, DotVertex const& a)
   {
     return os << "dataType: "<<a.dataType << '\n'
@@ -70,12 +71,9 @@ typedef boost::graph_traits<graph_t>::adjacency_iterator adjacency_iterator;
 class GLAMWorkload
 {
 private:
-  graph_t *glam_graph;
-  llvm::LLVMContext l_context;
   llvm::Module *l_module;
-
-  /* TODO: Move this onto Graph Property Bundle when a way to modify it is found */
-  GLAMFunction *g_function;
+  unsigned int initial_node_count;
+  unsigned int final_node_count;
   typedef  boost::unordered_map<std::string,
 				llvm::Type*(*)(llvm::LLVMContext &)>::const_iterator TypeFunctionIterator;
   const boost::unordered_map<std::string,
@@ -112,7 +110,15 @@ public:
   Vertex InsertLoopEpilogue(Vertex v);
   Vertex GetInNeighbour(Vertex v);
   Vertex GetOutNeighbour(Vertex v);
+  void GenerateLLVMModule();
+  void GenerateLLVMFunction();
+  void GenerateBasicBlocks();
   ~GLAMWorkload();
   llvm::Type* ConvertToLLVMType(std::string s);
   std::vector<Edge> GetConditionalEdges();
+  /* TODO: Take care of these either by friending or getter/setters */
+  graph_t *glam_graph;
+  llvm::LLVMContext l_context;
+  /* TODO: Move this onto Graph Property Bundle when a way to modify it is found */
+  GLAMFunction *g_function;
 };

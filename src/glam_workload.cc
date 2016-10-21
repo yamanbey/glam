@@ -5,6 +5,7 @@
 #include <boost/fusion/include/sequence.hpp>
 #include <boost/graph/topological_sort.hpp>
 #include "glam_function.hh"
+#include "glam_basicblock.hh"
 
 GLAMWorkload::GLAMWorkload()
 {
@@ -14,17 +15,34 @@ GLAMWorkload::GLAMWorkload()
 GLAMWorkload::GLAMWorkload(graph_t *gg)
 {
   glam_graph = gg;
-  struct DotVertex dv;
-  int v_count = num_vertices(*glam_graph);
+  initial_node_count = num_vertices(*glam_graph);
   AddEntryNode();
   AddExitNode();
   GenerateLoopNodes();
+  
+  final_node_count = num_vertices(*glam_graph);
+  GenerateLLVMModule();
+  GenerateLLVMFunction();
+  GenerateBasicBlocks();
+  l_module->dump();
+}
+
+GLAMWorkload::~GLAMWorkload()
+{
+  delete g_function;
+  delete glam_graph;
+}
+
+void GLAMWorkload::GenerateLLVMModule()
+{
   std::string module_name = get_property(*glam_graph, &DotGraph::name);
   l_module = new llvm::Module(module_name, l_context);
+}
 
-  
-  llvm::Type *rt =
-    ConvertToLLVMType((*glam_graph)[v_count+2].dataType);
+void GLAMWorkload::GenerateLLVMFunction()
+{
+  llvm::Type *rt = 
+    ConvertToLLVMType((*glam_graph)[initial_node_count+2].dataType);
   llvm::Type *input =
     ConvertToLLVMType((*glam_graph)[0].dataType+"ptr");
   std::vector<llvm::Type*> inputs;
@@ -32,10 +50,13 @@ GLAMWorkload::GLAMWorkload(graph_t *gg)
   g_function = new GLAMFunction(rt, inputs, l_module);
 }
 
-GLAMWorkload::~GLAMWorkload()
+void GLAMWorkload::GenerateBasicBlocks()
 {
-  delete g_function;
-  delete glam_graph;
+  std::pair<vertex_iter, vertex_iter> vp;
+  for (vp = vertices(*glam_graph); vp.first != vp.second; ++vp.first) {
+    Vertex v = *vp.first;
+    (*glam_graph)[v].g_block = new GLAMBasicBlock(&l_context, v, this);
+  }
 }
 
 void GLAMWorkload::PrintGraph()
