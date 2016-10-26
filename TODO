@@ -2,3 +2,5 @@
 - option to redirect PrintGraph to log
 - replace overloaded ostream operator with boost fusion for_each
 - Refactor DotGraph DotEdge DotVertex to GLAM...
+- Insert SetAlign() calls where needed
+- convert all code to snake case

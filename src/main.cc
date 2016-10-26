@@ -64,6 +64,8 @@ int main(int argc, char *argv[])
       auto sr = SpecificationReaderFactory::GetReader(functionFile);
       assert(sr != 0);
       GLAMWorkload* function = sr->ConvertToGLAM();
+      function->ConvertToLLVM();
+      function->SetLogger(logger);
       function->PrintGraph();
       delete function;
       delete sr;
