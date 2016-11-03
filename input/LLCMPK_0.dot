@@ -1,0 +1,7 @@
+digraph add {
+  1 [label="Memory",data_type=int64,distance=16,operation=load,length=4,stride=0,mask=24]
+  1 -> 1 [label="",type=1,condition=500000]	
+  module_name="add"
+  function_name="mem_loop"
+  label="add_test"
+}

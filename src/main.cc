@@ -7,13 +7,11 @@
 #include <boost/program_options.hpp>
 #include <boost/tuple/tuple.hpp>
 
-#include "json.hpp"
-using json = nlohmann::json;
-
 namespace po = boost::program_options;
 
 #include "specification_reader.hh"
 #include "glam_workload.hh"
+#include "block_visitor.hh"
 #include "logger.hh"
 
 po::variables_map parse_args(int ac, char *av[])
@@ -75,6 +73,5 @@ int main(int argc, char *argv[])
   catch(Exception&) {
     result = EXIT_FAILURE;
   }
-  
   return result;
 }

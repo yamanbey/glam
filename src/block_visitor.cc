@@ -4,13 +4,36 @@
 #include "glam_function.hh"
 
 #include <boost/graph/graphviz.hpp>
+#include <boost/circular_buffer.hpp>
 
 #include <iostream>
-
+#include <cstdlib>
 #include <llvm/IR/Instructions.h>
 
-void BranchVisitor::visit(GLAMBasicBlock *gbb, GLAMWorkload *g)
+template <typename T>
+llvm::Value* BlockVisitor::generate_loaded_constant(std::string str, T value)
 {
+  llvm::Type* constant_type = g_block->g_wl->ConvertToLLVMType(str);
+  llvm::Value* v;
+  if(str.find("int") != -1) {
+    v = llvm::ConstantInt::get(constant_type, value, false);
+  } else if(str.find("float") != -1) {
+    v = llvm::ConstantFP::get(constant_type, value);
+  } else if(str.find("double") != -1) {
+    v = llvm::ConstantFP::get(constant_type, value);
+  }
+  llvm::AllocaInst* v_alloc = new llvm::AllocaInst(constant_type);
+  llvm::StoreInst* v_store = new llvm::StoreInst(v, v_alloc, false);
+  llvm::LoadInst* v_load = new llvm::LoadInst(v_alloc, "", false);
+  g_block->l_block->getInstList().push_back(v_alloc);
+  g_block->l_block->getInstList().push_back(v_store);
+  g_block->l_block->getInstList().push_back(v_load);
+  return v_load;
+}
+
+void BranchVisitor::visit_impl(GLAMBasicBlock *gbb)
+{
+  GLAMWorkload *g = gbb->g_wl;
   std::vector<Vertex> vertices = g->GetOutNeighbours(gbb->g_vertex);
   if(vertices.size() == 1) {
     unconditional_branch(gbb,
@@ -19,7 +42,7 @@ void BranchVisitor::visit(GLAMBasicBlock *gbb, GLAMWorkload *g)
     std::vector<GLAMBasicBlock *> targets;
     for(auto v : vertices)
       targets.push_back((*g->glam_graph)[v].g_block);
-    conditional_branch(gbb, targets, g);
+    conditional_branch(gbb, targets);
   }
 }
 
@@ -29,9 +52,10 @@ void BranchVisitor::unconditional_branch(GLAMBasicBlock *source, GLAMBasicBlock 
 }
 
 void BranchVisitor::conditional_branch(GLAMBasicBlock *source,
-				       std::vector<GLAMBasicBlock *> targets,
-				       GLAMWorkload *g)
+				       std::vector<GLAMBasicBlock *> targets
+				       )
 {
+  GLAMWorkload *g = source->g_wl;
   auto get_value = [this,&source](uint32_t val)
     {return llvm::ConstantInt::get(llvm::Type::getInt32Ty(source->l_block->getContext()),
 				   val, false);};
@@ -64,19 +88,18 @@ void BranchVisitor::conditional_branch(GLAMBasicBlock *source,
 			   compare, source->l_block);
 }
 
-void EntryExitVisitor::visit(GLAMBasicBlock *gbb, GLAMWorkload *g)
+void EntryExitVisitor::visit_impl(GLAMBasicBlock *gbb)
 {
+  GLAMWorkload *g = gbb->g_wl;
   if((*g->glam_graph)[gbb->g_vertex].type == DotVertex::VertexTypes::PROLOGUE)
-    entry(gbb, g);
+    entry(gbb);
   else if((*g->glam_graph)[gbb->g_vertex].type == DotVertex::VertexTypes::EPILOGUE)
-    exit(gbb, g);
+    exit(gbb);
 }
 
-void EntryExitVisitor::entry(GLAMBasicBlock *gbb, GLAMWorkload *g)
+void EntryExitVisitor::entry(GLAMBasicBlock *gbb)
 {
-  auto get_value = [this,&gbb,&g](uint32_t val)
-    {return llvm::ConstantInt::get(g->ConvertToLLVMType((*g->glam_graph)[gbb->g_vertex].dataType),
-				   val, false);};
+  GLAMWorkload *g = gbb->g_wl;
   auto get_int_value = [this,&gbb](uint32_t val)
     {return llvm::ConstantInt::get(llvm::Type::getInt32Ty(gbb->l_block->getContext()),
 				   val, false);};
@@ -106,33 +129,39 @@ void EntryExitVisitor::entry(GLAMBasicBlock *gbb, GLAMWorkload *g)
   gbb->l_block->getInstList().push_back(float_2);
 }
 
-void EntryExitVisitor::exit(GLAMBasicBlock *gbb, GLAMWorkload *g)
+void EntryExitVisitor::exit(GLAMBasicBlock *gbb)
 {
   gbb->l_block->getInstList().push_back(llvm::ReturnInst::Create(gbb->l_block->getContext()));
 }
 
-void LoopVisitor::visit(GLAMBasicBlock *gbb, GLAMWorkload *g)
+void LoopVisitor::visit_impl(GLAMBasicBlock *gbb)
 {
+  GLAMWorkload *g = gbb->g_wl;
   if((*g->glam_graph)[gbb->g_vertex].type == DotVertex::VertexTypes::LOOP_PROLOGUE)
-    prologue(gbb, g);
+    prologue(gbb);
   else if((*g->glam_graph)[gbb->g_vertex].type == DotVertex::VertexTypes::LOOP_EPILOGUE)
-    epilogue(gbb, g);
+    epilogue(gbb);
 }
 
-void LoopVisitor::prologue(GLAMBasicBlock *gbb, GLAMWorkload *g)
+void LoopVisitor::prologue(GLAMBasicBlock *gbb)
 {
-  
+  GLAMWorkload *g = gbb->g_wl;
   auto get_value = [this,&gbb](uint32_t val)
     {return llvm::ConstantInt::get(llvm::Type::getInt32Ty(gbb->l_block->getContext()),
 				   val, false);};
   loop_counter = new llvm::AllocaInst(llvm::IntegerType::get(gbb->l_block->getContext(), 32), "i");
+  for(auto i = 0; i < g->loop_logues.size(); i++) {
+    if(std::get<0>(g->loop_logues[i]) == gbb->g_vertex) {
+      std::get<2>(g->loop_logues[i]) = loop_counter;
+    }
+  }
+    
   llvm::StoreInst* init_loop = new llvm::StoreInst(get_value(0), loop_counter, false);
   gbb->l_block->getInstList().push_back(loop_counter);
   gbb->l_block->getInstList().push_back(init_loop);
-
 }
 
-void LoopVisitor::epilogue(GLAMBasicBlock *gbb, GLAMWorkload *g)
+void LoopVisitor::epilogue(GLAMBasicBlock *gbb)
 {
   auto get_value = [this,&gbb](uint32_t val)
     {return llvm::ConstantInt::get(llvm::Type::getInt32Ty(gbb->l_block->getContext()),
@@ -145,4 +174,103 @@ void LoopVisitor::epilogue(GLAMBasicBlock *gbb, GLAMWorkload *g)
   gbb->l_block->getInstList().push_back(loaded_counter);
   gbb->l_block->getInstList().push_back(increment);
   gbb->l_block->getInstList().push_back(store_counter);
+}
+
+void OperationVisitor::visit_impl(GLAMBasicBlock *gbb)
+{
+  /* TODO: a get DotVertex function to get rid of the glam_graph derefs */
+  GLAMWorkload *g = gbb->g_wl;
+  if((*g->glam_graph)[gbb->g_vertex].type == DotVertex::VertexTypes::REGULAR) {
+    std::string operation = (*g->glam_graph)[gbb->g_vertex].operation;
+    std::string specstr =(*g->glam_graph)[gbb->g_vertex].dataType +
+      operation;
+    /* TODO: use a container for the binary operations that will be added */
+    if(operation == "add") {
+      SpecificationToLLVMBinaryOpIterator llvmop_iter = SpecificationToLLVMInstruction.find(specstr);
+      llvm::Instruction::BinaryOps bop = (llvmop_iter->second);
+      binary(gbb, bop);
+    } else if(operation == "load") {
+      memory(gbb, llvm::Instruction::Load);
+    }
+  }
+}
+
+OperationVisitor::~OperationVisitor()
+{
+
+}
+
+/* TODO: Convert DotVertex operation to BinaryOps at initialization */
+
+void OperationVisitor::binary(GLAMBasicBlock *gbb,
+			      llvm::Instruction::BinaryOps op)
+{
+  GLAMWorkload *g = gbb->g_wl;
+  unsigned distance = (*g->glam_graph)[gbb->g_vertex].distance;
+  unsigned length = (*g->glam_graph)[gbb->g_vertex].length;
+  unsigned itercount = std::ceil(length/distance);
+  boost::circular_buffer<llvm::BinaryOperator *> cb(distance);
+  std::srand(std::time(0));
+
+  // generate random values with generate_loaded_constant()
+  // generate a block of independent operations equal to the instruction dependency distance
+  for(unsigned i = 0; i < itercount; i++) {
+    for(unsigned j = 0; j < distance; j++) {
+      std::vector<llvm::Value *> values;
+      for(unsigned k = 0; k < 2; k++) {
+	values.push_back(generate_loaded_constant(((*g->glam_graph)[gbb->g_vertex].dataType),
+							  0x100));
+      }
+      llvm::BinaryOperator* bop_result = llvm::BinaryOperator::Create(op, values[0], values[1],"");
+      cb.push_back(bop_result);
+      gbb->l_block->getInstList().push_back(bop_result);
+    }
+  }
+}
+
+/* TODO: assuming that the block is in a loop and the operation is always using the loop counter
+   Assumptions made in this function that should later be fixed:
+   1) That the vertex is contained within the loop_logue[0]
+   2) The increment is based on loop counter
+   3) A mask value is provided
+*/
+
+void OperationVisitor::memory(GLAMBasicBlock *gbb,
+			      llvm::Instruction::MemoryOps op)
+{
+  std::string str = (*gbb->g_wl->glam_graph)[gbb->g_vertex].dataType;
+  llvm::Type* input_type = gbb->g_wl->ConvertToLLVMType(str);
+  auto get_int_value = [this,&gbb](uint32_t val)
+    {return llvm::ConstantInt::get(llvm::Type::getInt32Ty(gbb->l_block->getContext()),
+				   val, false);};
+  GLAMWorkload *g = gbb->g_wl;
+  unsigned mask = (*g->glam_graph)[gbb->g_vertex].mask;
+  unsigned length = (*g->glam_graph)[gbb->g_vertex].length;
+  unsigned stride = (*g->glam_graph)[gbb->g_vertex].stride;
+  llvm::Value* loop_counter = std::get<2>(g->loop_logues[0]);
+  llvm::LoadInst* loaded_loop_counter = new llvm::LoadInst(loop_counter, "", false);
+  // mask the loop_counter*stride with the area required
+  llvm::Function::arg_iterator args = g->g_function->l_function->arg_begin();
+  llvm::Value* f_input = NULL;
+  f_input = &(*args);
+
+  //  llvm::AllocaInst* f_input = new llvm::AllocaInst(input_type, "");
+  //  gbb->l_block->getInstList().push_back(loop_counter);
+  gbb->l_block->getInstList().push_back(loaded_loop_counter);
+  llvm::BinaryOperator* increment = llvm::BinaryOperator::Create(llvm::Instruction::Mul,
+								 loaded_loop_counter,
+								 generate_loaded_constant("int32", stride*length),
+								 "");
+  gbb->l_block->getInstList().push_back(increment);
+  for(unsigned i = 0; i < length; i++) {
+    llvm::BinaryOperator* address = llvm::BinaryOperator::Create(llvm::Instruction::Add,
+							increment,
+							get_int_value(i*stride));
+    llvm::GetElementPtrInst* ptr_1 = llvm::GetElementPtrInst::Create(input_type, f_input, address);
+    llvm::LoadInst* float_1 = new llvm::LoadInst(ptr_1, "", true);
+    gbb->l_block->getInstList().push_back(address);
+    gbb->l_block->getInstList().push_back(ptr_1);
+    gbb->l_block->getInstList().push_back(float_1);
+
+  }
 }

@@ -1,9 +1,9 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <string>
+#include <tuple>
 #include <boost/fusion/adapted/struct/adapt_struct.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/assign/list_of.hpp>
-#include <boost/unordered_map.hpp>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -23,13 +23,14 @@ class GLAMBasicBlock;
 class BlockVisitor;
 struct DotVertex {
   std::string dataType;
-  int distance;
+  unsigned distance;
   std::string operation;
-  int stride;
-  int length;
+  unsigned stride;
+  unsigned length;
   int type;
   std::string label;
   std::string dependency;
+  unsigned mask;
   GLAMBasicBlock *g_block;
   friend std::ostream& operator <<(std::ostream& os, DotVertex const& a)
   {
@@ -37,6 +38,7 @@ struct DotVertex {
 	      << "distance: "<<a.distance << '\n'
 	      << "operation: "<<a.operation << '\n'
       	      << "stride: "<<a.stride << '\n'
+	      << "mask: "<<a.mask << '\n'
       	      << "length: "<<a.length << '\n'
       	      << "label: "<<a.label << '\n'
 	      << "type "<<a.type << '\n'
@@ -51,6 +53,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 			  (int, distance)
 			  (std::string, operation)
 			  (int, stride)
+			  (int, mask)
 			  (int, length)
 			  (std::string, label)
 			  (std::string, dependency)
@@ -66,7 +69,6 @@ struct DotEdge {
 	      << "type: "<<a.type << '\n'
 	      << "condition: "<<a.condition;
   }
-
 };
 
 struct DotGraph {
@@ -82,19 +84,21 @@ typedef boost::graph_traits<graph_t>::vertex_iterator vertex_iter;
 typedef boost::graph_traits<graph_t>::edge_iterator edge_iter;
 typedef boost::graph_traits<graph_t>::out_edge_iterator out_edge_iter;
 typedef boost::graph_traits<graph_t>::adjacency_iterator adjacency_iterator;
-typedef std::pair<Vertex, Vertex> LoopProEpi;
+typedef std::tuple<Vertex, Vertex, llvm::Value*> LoopProEpi;
 typedef std::vector<LoopProEpi> LoopLogues;
 class GLAMWorkload
 {
+  //  friend class BlockVisitor;
 private:
   std::vector<BlockVisitor *> block_visitors;
+  Vertex entry_point;
   llvm::Module *l_module;
   unsigned int initial_node_count;
   unsigned int final_node_count;
-  typedef  boost::unordered_map<std::string,
-				llvm::Type*(*)(llvm::LLVMContext &)>::const_iterator TypeFunctionIterator;
-  const boost::unordered_map<std::string,
-			     llvm::Type*(*)(llvm::LLVMContext &)>
+  typedef std::unordered_map<std::string,
+			     llvm::Type*(*)(llvm::LLVMContext &)>::const_iterator TypeFunctionIterator;
+  const std::unordered_map<std::string,
+			   llvm::Type*(*)(llvm::LLVMContext &)>
   StringTolltypePtr = boost::assign::map_list_of
     ("void", &(llvm::Type::getVoidTy))
     ("label", &(llvm::Type::getLabelTy))

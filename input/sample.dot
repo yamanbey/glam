@@ -1,8 +1,8 @@
 digraph G {
-  1 [label="Compute",data_type=float,distance=1,operation=add,length=16]
-  2 [label="Memory",data_type=float,distance=16,operation=load,length=16,stride=64]
+  1 [label="Compute",data_type=int64,distance=4,operation=add,length=8]
+  2 [label="Memory",data_type=int64,distance=16,operation=load,length=4,stride=64,mask=24]
   1 -> 2 [label="",type=0]
-  2 -> 1 [label="",type=1,condition=1000000]
+  2 -> 1 [label="",type=1,condition=500000]
   module_name="test"
   function_name="test"
   label="glamtest"

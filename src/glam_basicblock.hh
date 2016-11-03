@@ -7,13 +7,14 @@ class GLAMBasicBlock
 private:
 
 public:
-  llvm::BasicBlock *l_block;
+  llvm::BasicBlock* l_block;
+  GLAMWorkload* g_wl;
   GLAMBasicBlock();
   GLAMBasicBlock(llvm::LLVMContext *lc,
 		 Vertex v,
-		 GLAMWorkload *g_w
+		 GLAMWorkload *gwl
 		 );
-  void accept(BlockVisitor *bv, GLAMWorkload *g);
+  void accept(BlockVisitor *bv);
   Vertex g_vertex;
   ~GLAMBasicBlock();
 };

@@ -22,7 +22,6 @@ GLAMWorkload::GLAMWorkload(graph_t *gg)
     (*glam_graph)[v].type = DotVertex::VertexTypes::REGULAR;
   }
 
-
   initial_node_count = num_vertices(*glam_graph);
   AddEntryNode();
   AddExitNode();
@@ -56,11 +55,22 @@ GLAMWorkload::~GLAMWorkload()
 
 void GLAMWorkload::FillBasicBlocks()
 {
+  /* The visit order should be in topological order rather than the numeric order of
+     vertices */
+
   std::pair<vertex_iter, vertex_iter> vp;
+  /*
   for (vp = vertices(*glam_graph); vp.first != vp.second; ++vp.first) {
     Vertex v = *vp.first;
     for (auto bv : block_visitors)
-      (*glam_graph)[v].g_block->accept(bv, this);
+      (*glam_graph)[v].g_block->accept(bv);
+      }
+  */
+  for (auto bv : block_visitors) {
+    for (vp = vertices(*glam_graph); vp.first != vp.second; ++vp.first) {
+    Vertex v = *vp.first;
+    (*glam_graph)[v].g_block->accept(bv);
+    }
   }
 }
 
@@ -68,8 +78,8 @@ void GLAMWorkload::GenerateVisitors()
 {
   block_visitors.push_back(new EntryExitVisitor);
   block_visitors.push_back(new LoopVisitor);
+  block_visitors.push_back(new OperationVisitor);
   block_visitors.push_back(new BranchVisitor);
-
 }
 
 void GLAMWorkload::GenerateLLVMModule()
@@ -92,15 +102,18 @@ void GLAMWorkload::GenerateLLVMFunction()
 void GLAMWorkload::GenerateBasicBlocks()
 {
   std::pair<vertex_iter, vertex_iter> vp;
+  (*glam_graph)[entry_point].g_block = new GLAMBasicBlock(&l_context, entry_point, this);
   for (vp = vertices(*glam_graph); vp.first != vp.second; ++vp.first) {
     Vertex v = *vp.first;
-    (*glam_graph)[v].g_block = new GLAMBasicBlock(&l_context, v, this);
+    /* TODO: ugly hack */
+    if(v != entry_point)
+      (*glam_graph)[v].g_block = new GLAMBasicBlock(&l_context, v, this);
   }
 }
 
 void GLAMWorkload::PrintGraph()
 {
-  LOG4CXX_DEBUG(logger, "***********************************************");
+  LOG4CXX_DEBUG(logger,"***********************************************");
   LOG4CXX_DEBUG(logger,""<<get_property(*glam_graph, &DotGraph::name));
   LOG4CXX_DEBUG(logger,"***********************************************");
   PrintVertices();
@@ -150,7 +163,7 @@ void GLAMWorkload::AddEntryNode()
   dv.label = "entry";
   dv.type = DotVertex::VertexTypes::PROLOGUE;
   Vertex entry = AddVertex(dv);
-  
+  entry_point = entry;
   struct DotEdge de;
   de.type = EdgeTypes::UNCONDITIONAL;
   AddEdge(de, entry, 0);
@@ -185,18 +198,18 @@ void GLAMWorkload::GenerateLoopNodes()
 {
   std::vector<Edge> conditional_edges = GetConditionalEdges();
   Vertex u,v,le,lp;
-  for(std::vector<Edge>::iterator it=conditional_edges.begin();
+  for(std::vector<Edge>::iterator it = conditional_edges.begin();
       it != conditional_edges.end(); it++) {
     u = source(*it, *glam_graph);
     v = target(*it, *glam_graph);
-    if(u > v) {
+    if(u >= v) {
       // v: start of loop
       // u: conditional branch
       int counter = (*glam_graph)[*it].condition;
       remove_edge(*it, *glam_graph);
       lp = InsertLoopPrologue(v);
       le = InsertLoopEpilogue(u);
-      loop_logues.push_back(std::make_pair(lp,le));
+      loop_logues.push_back(std::make_tuple(lp, le, nullptr));
       struct DotEdge de;
       de.type = EdgeTypes::CONDITIONAL_COUNT;
       de.condition = counter;
@@ -311,8 +324,8 @@ GLAMBasicBlock* GLAMWorkload::get_loop_prologue(Vertex v)
 {
   Vertex prologue = 0xffffffff;
   for(auto i : loop_logues) {
-    if(i.second == v)
-      prologue = i.first;
+    if(std::get<1>(i) == v)
+      prologue = std::get<0>(i);
   }
   assert(prologue != 0xffffffff);
   return (*glam_graph)[prologue].g_block;

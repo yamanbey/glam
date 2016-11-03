@@ -1,0 +1,10 @@
+digraph G {
+  1 [label="Compute",data_type=int64,distance=4,operation=add,length=32]
+  2 [label="Memory",data_type=int64,distance=1,operation=load,length=16,stride=8,mask=24]
+  1 -> 2 [label="",type=0]
+  2 -> 1 [label="",type=1,condition=500000]
+  module_name="test"
+  function_name="test"
+  label="glamtest"
+}
+

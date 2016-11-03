@@ -12,13 +12,14 @@ GLAMBasicBlock::GLAMBasicBlock()
 
 GLAMBasicBlock::GLAMBasicBlock(llvm::LLVMContext *lc,
 			       Vertex v,
-			       GLAMWorkload *g_w)
+			       GLAMWorkload *gwl)
 {
-  l_block = llvm::BasicBlock::Create(g_w->l_context,
-				     (*(g_w->glam_graph))[v].label,
-				     g_w->g_function->l_function,
+  this->l_block = llvm::BasicBlock::Create(gwl->l_context,
+				     (*(gwl->glam_graph))[v].label,
+				     gwl->g_function->l_function,
 				     0);
-  g_vertex = v;
+  this->g_wl = gwl;
+  this->g_vertex = v;
 				     
 }
 
@@ -27,7 +28,7 @@ GLAMBasicBlock::~GLAMBasicBlock()
 
 }
 
-void GLAMBasicBlock::accept(BlockVisitor *bv, GLAMWorkload *g)
+void GLAMBasicBlock::accept(BlockVisitor *bv)
 {
-  bv->visit(this, g);
+  bv->visit(this);
 }
